@@ -68,7 +68,15 @@ function low(n: number): number {
 await runBars({
   onBatch(state, batch) {
     const bar = batch.bars.find((b) => b.symbol === SYMBOL);
-    if (bar !== undefined) closes.push(Number(bar.c) / PRICE);
+    // A minute with no CBBTC bar carries a stale close: fold the fills in,
+    // but decide nothing on old prices.
+    if (bar === undefined) {
+      for (const f of batch.fills) {
+        if (f.symbol === SYMBOL && f.side === 'buy' && f.status === 'rejected') pendingLeg = null;
+      }
+      return [];
+    }
+    closes.push(Number(bar.c) / PRICE);
 
     // Fold in the fills of the orders decided on the previous batch.
     for (const f of batch.fills) {
